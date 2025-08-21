@@ -1,0 +1,62 @@
+# api/consumers.py
+import json
+from channels.generic.websocket import AsyncWebsocketConsumer
+from .db import chat_collection
+import datetime
+
+class ChatConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        # Get department ID from the URL
+        self.room_name = self.scope['url_route']['kwargs']['department_id']
+        self.room_group_name = f'chat_{self.room_name}'
+
+        # Join department group
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        # Leave department group
+        await self.channel_layer.group_discard(
+            self.room_group_name,
+            self.channel_name
+        )
+
+    # Receive message from WebSocket
+    async def receive(self, text_data):
+        text_data_json = json.loads(text_data)
+        message = text_data_json['message']
+        employee_name = text_data_json['employee_name']
+
+        # Prepare message to save in MongoDB
+        message_data = {
+            'group_name': self.room_group_name, # This is our partition key
+            'employee_name': employee_name,
+            'message': message,
+            'timestamp': datetime.datetime.utcnow()
+        }
+        # Save message to MongoDB
+        chat_collection.insert_one(message_data)
+
+        # Send message to department group
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'chat_message',
+                'message': message,
+                'employee_name': employee_name
+            }
+        )
+
+    # Receive message from department group
+    async def chat_message(self, event):
+        message = event['message']
+        employee_name = event['employee_name']
+
+        # Send message to WebSocket
+        await self.send(text_data=json.dumps({
+            'message': message,
+            'employee_name': employee_name
+        }))
