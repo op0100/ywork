@@ -1,0 +1,61 @@
+# maximal_rectangle_interactive.py
+
+def largest_rectangle_in_histogram(heights):
+    """Helper function to find the largest rectangle in a histogram."""
+    stack = [-1]
+    max_area = 0
+    for i, h in enumerate(heights):
+        while stack[-1] != -1 and heights[stack[-1]] >= h:
+            height = heights[stack.pop()]
+            width = i - stack[-1] - 1
+            max_area = max(max_area, height * width)
+        stack.append(i)
+    while stack[-1] != -1:
+        height = heights[stack.pop()]
+        width = len(heights) - stack[-1] - 1
+        max_area = max(max_area, height * width)
+    return max_area
+
+def maximal_rectangle(matrix):
+    """Finds the largest rectangle of '1's in a binary matrix."""
+    if not matrix or not matrix[0]:
+        return 0
+    rows = len(matrix)
+    cols = len(matrix[0])
+    heights = [0] * cols
+    max_area = 0
+    for r in range(rows):
+        for c in range(cols):
+            # The input is already strings, so no need to convert
+            heights[c] = heights[c] + 1 if matrix[r][c] == "1" else 0
+        max_area = max(max_area, largest_rectangle_in_histogram(heights))
+    return max_area
+
+if __name__ == "__main__":
+    try:
+        rows = int(input("Enter the number of rows: "))
+        cols = int(input("Enter the number of columns: "))
+        
+        matrix = []
+        print(f"\nEnter the matrix row by row, with {cols} values (0 or 1) separated by spaces.")
+        
+        for i in range(rows):
+            while True:
+                row_str = input(f"Row {i + 1}: ")
+                row_list = row_str.split()
+                if len(row_list) == cols:
+                    matrix.append(row_list)
+                    break
+                else:
+                    print(f"Error: Please enter exactly {cols} values.")
+        
+        result = maximal_rectangle(matrix)
+        print("\nInput Matrix:")
+        for row in matrix:
+            print(row)
+        print(f"\nOutput (area of the largest rectangle): {result}")
+
+    except ValueError:
+        print("Invalid input. Please enter valid numbers for dimensions and matrix values.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
